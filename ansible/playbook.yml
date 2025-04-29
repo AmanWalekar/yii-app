@@ -1,0 +1,92 @@
+---
+- name: Setup Yii2 Shop Infrastructure
+  hosts: all
+  become: true
+  vars:
+    docker_version: "20.10.17"
+    nginx_config_path: "/etc/nginx/sites-available/yii2-shop"
+    nginx_config_symlink: "/etc/nginx/sites-enabled/yii2-shop"
+    app_domain: "your-domain.com"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - git
+          - nginx
+          - python3-pip
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: "docker-ce={{ docker_version }}~3-0~ubuntu-{{ ansible_distribution_release }}"
+        state: present
+
+    - name: Install Docker Compose
+      pip:
+        name: docker-compose
+        state: present
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Initialize Docker Swarm
+      command: docker swarm init
+      register: swarm_init
+      ignore_errors: yes
+
+    - name: Configure Nginx
+      template:
+        src: nginx.conf.j2
+        dest: "{{ nginx_config_path }}"
+        mode: '0644'
+      notify: restart nginx
+
+    - name: Create Nginx symlink
+      file:
+        src: "{{ nginx_config_path }}"
+        dest: "{{ nginx_config_symlink }}"
+        state: link
+      notify: restart nginx
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: restart nginx
+
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted 

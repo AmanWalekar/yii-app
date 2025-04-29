@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: yii2-shop-app
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=yii2shop
+      - DB_USER=yii2shop
+      - DB_PASSWORD=yii2shop
+    depends_on:
+      - mysql
+    networks:
+      - yii2-shop-network
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+
+  # Nginx Service
+  nginx:
+    image: nginx:alpine
+    container_name: yii2-shop-nginx
+    ports:
+      - "8080:80"
+      - "8081:81"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - php
+    networks:
+      - yii2-shop-network
+
+  # MySQL Service
+  mysql:
+    image: mysql:5.7
+    container_name: yii2-shop-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: yii2shop
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: yii2shop
+      MYSQL_PASSWORD: yii2shop
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - yii2-shop-network
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+networks:
+  yii2-shop-network:
+    driver: overlay
+
+volumes:
+  mysql_data:
+    driver: local 
