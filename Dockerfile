@@ -8,47 +8,28 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     zip \
-    unzip \
-    wget
-
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+    unzip
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Get latest Composer
+# Get Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Create application directory and set permissions
-RUN mkdir -p /var/www/html && \
-    chown -R www-data:www-data /var/www/html && \
-    chmod -R 755 /var/www/html
-
-# Set Git safe directory
-RUN git config --global --add safe.directory /var/www/html
-
 # Copy application files
-COPY --chown=www-data:www-data . /var/www/html/
+COPY . /var/www/html/
 
-# Set proper permissions
+# Set permissions
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 755 /var/www/html && \
-    chmod -R 777 /var/www/html/frontend/web/assets && \
-    chmod -R 777 /var/www/html/backend/web/assets && \
-    chmod -R 777 /var/www/html/frontend/runtime && \
-    chmod -R 777 /var/www/html/backend/runtime
+    chmod -R 777 /var/www/html/frontend/web/assets /var/www/html/backend/web/assets \
+    /var/www/html/frontend/runtime /var/www/html/backend/runtime
 
-# Configure Composer and install dependencies
-RUN composer config allow-plugins.yiisoft/yii2-composer true && \
-    composer config allow-plugins.fxp/composer-asset-plugin true && \
-    composer config minimum-stability dev && \
-    composer config prefer-stable true && \
-    composer require "fxp/composer-asset-plugin:^1.4.7" && \
-    composer install --no-dev --optimize-autoloader --ignore-platform-reqs --no-scripts
+# Install dependencies
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s \
