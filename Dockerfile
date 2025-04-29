@@ -42,11 +42,13 @@ RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 777 /var/www/html/frontend/runtime && \
     chmod -R 777 /var/www/html/backend/runtime
 
-# Install dependencies with specific versions
+# Configure Composer and install dependencies
 RUN composer config -g allow-plugins.yiisoft/yii2-composer true && \
     composer config -g allow-plugins.fxp/composer-asset-plugin true && \
-    composer global require "fxp/composer-asset-plugin:~1.4.7" && \
-    composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+    composer config -g minimum-stability dev && \
+    composer config -g prefer-stable true && \
+    composer global require "fxp/composer-asset-plugin:^1.4.7" && \
+    composer install --no-dev --optimize-autoloader --ignore-platform-reqs --no-scripts
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s \
